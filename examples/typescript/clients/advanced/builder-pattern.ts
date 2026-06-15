@@ -3,6 +3,9 @@ import { x402Client, wrapFetchWithPayment, x402HTTPClient } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { UptoEvmScheme } from "@x402/evm/upto/client";
 import { ExactSvmScheme } from "@x402/svm/exact/client";
+import { KeyAlgorithm } from "casper-js-sdk";
+import { createClientCasperSigner } from "@x402/casper";
+import { ExactCasperScheme } from "@x402/casper/exact/client";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { base58 } from "@scure/base";
 
@@ -19,11 +22,15 @@ import { base58 } from "@scure/base";
  *
  * @param evmPrivateKey - The EVM private key for signing
  * @param svmPrivateKey - The SVM private key for signing
+ * @param casperPrivateKeyPath - Path to a PEM-encoded Casper private key (optional)
+ * @param casperKeyAlgorithm - "ed25519" or "secp256k1" (optional, defaults to ed25519)
  * @param url - The URL to make the request to
  */
 export async function runBuilderPatternExample(
   evmPrivateKey: `0x${string}`,
   svmPrivateKey: string,
+  casperPrivateKeyPath: string | undefined,
+  casperKeyAlgorithm: string | undefined,
   url: string,
 ): Promise<void> {
   console.log("🔧 Creating client with builder pattern...\n");
@@ -32,6 +39,13 @@ export async function runBuilderPatternExample(
   const ethereumMainnetSigner = evmSigner; // Could be a different signer for mainnet
   const svmSigner = await createKeyPairSignerFromBytes(base58.decode(svmPrivateKey));
   const solanaDevnetSigner = svmSigner; // Could be a different signer for devnet
+
+  let casperSigner;
+  if (casperPrivateKeyPath) {
+    const algorithm =
+      casperKeyAlgorithm === "secp256k1" ? KeyAlgorithm.SECP256K1 : KeyAlgorithm.ED25519;
+    casperSigner = await createClientCasperSigner(casperPrivateKeyPath, algorithm);
+  }
 
   // Builder pattern allows fine-grained control over network registration
   // More specific patterns (e.g., "eip155:1") take precedence over wildcards (e.g., "eip155:*")
@@ -42,11 +56,18 @@ export async function runBuilderPatternExample(
     .register("solana:*", new ExactSvmScheme(svmSigner)) // All Solana networks
     .register("solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", new ExactSvmScheme(solanaDevnetSigner)); // Devnet override
 
+  if (casperSigner) {
+    client.register("casper:*", new ExactCasperScheme(casperSigner));
+  }
+
   console.log("Registered networks:");
   console.log("  - eip155:* (all EVM) with default signer");
   console.log("  - eip155:1 (Ethereum mainnet) with mainnet signer");
   console.log("  - solana:* (all Solana) with default signer");
   console.log("  - solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1 (devnet) with devnet signer");
+  if (casperSigner) {
+    console.log("  - casper:* (all Casper) with default signer");
+  }
   console.log();
 
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);
