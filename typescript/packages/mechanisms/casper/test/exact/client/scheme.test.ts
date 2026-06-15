@@ -109,4 +109,30 @@ describe("ExactCasperScheme", () => {
       scheme.createPaymentPayload(2, buildRequirements({ extra: { name: "TestToken" } })),
     ).rejects.toThrow("invalid_exact_casper_client_missing_token_version");
   });
+
+  it("produces a unique nonce for each payload", async () => {
+    const scheme = new ExactCasperScheme(createTestSigner());
+    const result1 = await scheme.createPaymentPayload(2, buildRequirements());
+    const result2 = await scheme.createPaymentPayload(2, buildRequirements());
+
+    const nonce1 = (result1.payload as { authorization: { nonce: string } }).authorization.nonce;
+    const nonce2 = (result2.payload as { authorization: { nonce: string } }).authorization.nonce;
+
+    expect(nonce1).not.toBe(nonce2);
+    expect(nonce1).toMatch(/^[0-9a-fA-F]{64}$/);
+    expect(nonce2).toMatch(/^[0-9a-fA-F]{64}$/);
+  });
+
+  it.each([
+    { algorithm: KeyAlgorithm.ED25519, expectedByte: "01" },
+    { algorithm: KeyAlgorithm.SECP256K1, expectedByte: "02" },
+  ])("signature algorithm byte matches $algorithm", async ({ algorithm, expectedByte }) => {
+    const privateKey = PrivateKey.generate(algorithm);
+    const scheme = new ExactCasperScheme(toClientCasperSigner(privateKey));
+    const result = await scheme.createPaymentPayload(2, buildRequirements());
+
+    const signature = (result.payload as { signature: string }).signature;
+    expect(signature).toMatch(/^[0-9a-fA-F]{130}$/);
+    expect(signature.slice(0, 2).toLowerCase()).toBe(expectedByte);
+  });
 });
