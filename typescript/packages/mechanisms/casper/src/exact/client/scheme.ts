@@ -1,7 +1,8 @@
 import { PaymentPayloadResult, PaymentRequirements, SchemeNetworkClient } from "@x402/core/types";
 import { buildDomain, CASPER_DOMAIN_TYPES, hashTypedData } from "@casper-ecosystem/casper-eip-712";
+import { SCHEME_EXACT } from "../../constants";
 import { ClientCasperSigner } from "../../signer";
-import { isValidContractPackageHash } from "../../utils";
+import { isValidAddress, isValidContractPackageHash } from "../../utils";
 
 const transferWithAuthorizationTypes = {
   TransferWithAuthorization: [
@@ -28,7 +29,7 @@ function hexEncode(bytes: Uint8Array): string {
  * Casper client implementation for the Exact payment scheme.
  */
 export class ExactCasperScheme implements SchemeNetworkClient {
-  readonly scheme = "exact";
+  readonly scheme = SCHEME_EXACT;
 
   /**
    * Create a new ExactCasperScheme instance.
@@ -50,6 +51,10 @@ export class ExactCasperScheme implements SchemeNetworkClient {
   ): Promise<PaymentPayloadResult> {
     if (!isValidContractPackageHash(paymentRequirements.asset)) {
       throw new Error(`invalid_exact_casper_client_invalid_asset: ${paymentRequirements.asset}`);
+    }
+
+    if (!isValidAddress(paymentRequirements.payTo)) {
+      throw new Error(`invalid_exact_casper_client_invalid_pay_to: ${paymentRequirements.payTo}`);
     }
 
     const name = paymentRequirements.extra?.name;
