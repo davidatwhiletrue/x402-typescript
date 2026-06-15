@@ -19,6 +19,9 @@ import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactHederaScheme } from "@x402/hedera/exact/client";
 import { createClientHederaSigner, PrivateKey } from "@x402/hedera";
+import { KeyAlgorithm } from "casper-js-sdk";
+import { createClientCasperSigner } from "@x402/casper";
+import { ExactCasperScheme } from "@x402/casper/exact/client";
 import { base58 } from "@scure/base";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { privateKeyToAccount } from "viem/accounts";
@@ -33,6 +36,8 @@ const stellarPrivateKey = process.env.STELLAR_PRIVATE_KEY as string | undefined;
 const hederaAccountId = process.env.HEDERA_ACCOUNT_ID;
 // Hedera private key should be an ECDSA key string (0x-prefixed or DER-encoded).
 const hederaPrivateKey = process.env.HEDERA_PRIVATE_KEY;
+const casperPrivateKeyPath = process.env.CASPER_PRIVATE_KEY_PATH as string | undefined;
+const casperKeyAlgorithm = process.env.CASPER_KEY_ALGORITHM as string | undefined;
 const hederaNetwork = process.env.HEDERA_NETWORK || "hedera:testnet";
 const baseURL = process.env.RESOURCE_SERVER_URL || "http://localhost:4021";
 const endpointPath = process.env.ENDPOINT_PATH || "/weather";
@@ -49,10 +54,11 @@ async function main(): Promise<void> {
     !evmPrivateKey &&
     !svmPrivateKey &&
     !stellarPrivateKey &&
-    !(hederaAccountId && hederaPrivateKey)
+    !(hederaAccountId && hederaPrivateKey) &&
+    !casperPrivateKeyPath
   ) {
     console.error(
-      "❌ At least one of AVM_PRIVATE_KEY, EVM_PRIVATE_KEY, SVM_PRIVATE_KEY, STELLAR_PRIVATE_KEY, or HEDERA_ACCOUNT_ID + HEDERA_PRIVATE_KEY is required",
+      "❌ At least one of AVM_PRIVATE_KEY, EVM_PRIVATE_KEY, SVM_PRIVATE_KEY, STELLAR_PRIVATE_KEY, HEDERA_ACCOUNT_ID + HEDERA_PRIVATE_KEY, or CASPER_PRIVATE_KEY_PATH is required",
     );
     process.exit(1);
   }
@@ -89,6 +95,15 @@ async function main(): Promise<void> {
     );
     client.register("hedera:*", new ExactHederaScheme(hederaSigner));
     console.log(`Initialized Hedera account: ${hederaAccountId} on ${hederaNetwork}`);
+  }
+
+  // Register Casper scheme if private key path is provided
+  if (casperPrivateKeyPath) {
+    const algorithm =
+      casperKeyAlgorithm === "secp256k1" ? KeyAlgorithm.SECP256K1 : KeyAlgorithm.ED25519;
+    const casperSigner = await createClientCasperSigner(casperPrivateKeyPath, algorithm);
+    client.register("casper:*", new ExactCasperScheme(casperSigner));
+    console.log(`Initialized Casper account: ${casperSigner.accountAddress()}`);
   }
 
   // Register Stellar scheme if private key is provided
