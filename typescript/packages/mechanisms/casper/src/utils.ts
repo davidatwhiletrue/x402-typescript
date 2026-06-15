@@ -2,6 +2,7 @@ import { NetworkConfig, NetworkConfigs } from "./constants";
 
 const addressHashRegex = /^(00|01)[0-9a-fA-F]{64}$/;
 const contractPackageHashRegex = /^[0-9a-fA-F]{64}$/;
+const numericRegex = /^\d+$/;
 
 /**
  * Decode a hex string into a Uint8Array. Works in Node and browsers.
@@ -53,11 +54,7 @@ export function decodeContractPackageHash(value: string): Uint8Array {
   if (!isValidContractPackageHash(value)) {
     throw new Error(`contract_package_hash must be 64 hex chars, got ${value.length}`);
   }
-  const bytes = hexToBytes(value);
-  if (bytes.length !== 32) {
-    throw new Error("invalid hex in contract_package_hash");
-  }
-  return bytes;
+  return hexToBytes(value);
 }
 
 /**
@@ -70,10 +67,20 @@ export function decodeContractPackageHash(value: string): Uint8Array {
 export function parseAmount(amount: string, decimals: number): bigint {
   const trimmed = amount.trim();
   if (!trimmed.includes(".")) {
+    if (!numericRegex.test(trimmed)) {
+      throw new Error(`amount must be numeric, got ${amount}`);
+    }
     return BigInt(trimmed);
   }
 
   const [intPart, fracPartRaw] = trimmed.split(".");
+  if (
+    (intPart && !numericRegex.test(intPart)) ||
+    (fracPartRaw && !numericRegex.test(fracPartRaw))
+  ) {
+    throw new Error(`amount must be numeric, got ${amount}`);
+  }
+
   const multiplier = 10n ** BigInt(decimals);
   let result = BigInt(intPart || "0") * multiplier;
 
