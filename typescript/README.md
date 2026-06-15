@@ -29,4 +29,5 @@ This folder contains Typescript packages to help developers implement the x402 p
 | **Aptos** - [`@x402/aptos`](./packages/mechanisms/aptos) | Aptos implementation of the x402 payment protocol. | [![npm version](https://img.shields.io/npm/v/%40x402%2Faptos.svg)](https://www.npmjs.com/package/@x402/aptos) |
 | **Stellar** - [`@x402/stellar`](./packages/mechanisms/stellar) | Stellar implementation of x402 using Soroban token transfers. | [![npm version](https://img.shields.io/npm/v/%40x402%2Fstellar.svg)](https://www.npmjs.com/package/@x402/stellar) |
 | **Solana** - [`@x402/svm`](./packages/mechanisms/svm) | SVM implementation of x402 using SPL token transfers. | [![npm version](https://img.shields.io/npm/v/%40x402%2Fsvm.svg)](https://www.npmjs.com/package/@x402/svm) |
+| **Casper** - [`@x402/casper`](./packages/mechanisms/casper) | Casper implementation of x402 using EIP-712 transfer authorizations. | [![npm version](https://img.shields.io/npm/v/%40x402%2Fcasper.svg)](https://www.npmjs.com/package/@x402/casper) |
 
