@@ -12,12 +12,14 @@ function createTestSigner() {
   return toClientCasperSigner(privateKey);
 }
 
-function buildRequirements(overrides?: Partial<{
-  asset: string;
-  amount: string;
-  payTo: string;
-  extra: Record<string, unknown>;
-}>): Parameters<ExactCasperScheme["createPaymentPayload"]>[1] {
+function buildRequirements(
+  overrides?: Partial<{
+    asset: string;
+    amount: string;
+    payTo: string;
+    extra: Record<string, unknown>;
+  }>,
+): Parameters<ExactCasperScheme["createPaymentPayload"]>[1] {
   return {
     scheme: "exact",
     network: "casper:casper-test",
@@ -69,7 +71,8 @@ describe("ExactCasperScheme", () => {
     const scheme = new ExactCasperScheme(createTestSigner());
     const result = await scheme.createPaymentPayload(2, buildRequirements());
 
-    const auth = (result.payload as { authorization: { validAfter: string; validBefore: string } }).authorization;
+    const auth = (result.payload as { authorization: { validAfter: string; validBefore: string } })
+      .authorization;
     const validAfter = Number(auth.validAfter);
     const validBefore = Number(auth.validBefore);
 
@@ -96,20 +99,14 @@ describe("ExactCasperScheme", () => {
   it("throws when token name is missing", async () => {
     const scheme = new ExactCasperScheme(createTestSigner());
     await expect(
-      scheme.createPaymentPayload(
-        2,
-        buildRequirements({ extra: { version: "1" } }),
-      ),
+      scheme.createPaymentPayload(2, buildRequirements({ extra: { version: "1" } })),
     ).rejects.toThrow("invalid_exact_casper_client_missing_token_name");
   });
 
   it("throws when token version is missing", async () => {
     const scheme = new ExactCasperScheme(createTestSigner());
     await expect(
-      scheme.createPaymentPayload(
-        2,
-        buildRequirements({ extra: { name: "TestToken" } }),
-      ),
+      scheme.createPaymentPayload(2, buildRequirements({ extra: { name: "TestToken" } })),
     ).rejects.toThrow("invalid_exact_casper_client_missing_token_version");
   });
 });
