@@ -7,6 +7,8 @@ config();
 
 const evmPrivateKey = process.env.EVM_PRIVATE_KEY as `0x${string}`;
 const svmPrivateKey = process.env.SVM_PRIVATE_KEY as string;
+const casperPrivateKeyPath = process.env.CASPER_PRIVATE_KEY_PATH as string | undefined;
+const casperKeyAlgorithm = process.env.CASPER_KEY_ALGORITHM as string | undefined;
 const baseURL = process.env.RESOURCE_SERVER_URL || "http://localhost:4021";
 const endpointPath = process.env.ENDPOINT_PATH || "/weather";
 const url = `${baseURL}${endpointPath}`;
@@ -24,6 +26,8 @@ const url = `${baseURL}${endpointPath}`;
  * To run this example, you need to set the following environment variables:
  * - EVM_PRIVATE_KEY: The private key of the EVM signer
  * - SVM_PRIVATE_KEY: The private key of the SVM signer
+ * - CASPER_PRIVATE_KEY_PATH: Path to a PEM-encoded Casper private key (optional)
+ * - CASPER_KEY_ALGORITHM: "ed25519" or "secp256k1" (optional, defaults to ed25519)
  *
  * Usage:
  *   pnpm start all-networks
@@ -51,11 +55,17 @@ async function main(): Promise<void> {
         console.error("❌ SVM_PRIVATE_KEY environment variable is required for builder-pattern");
         process.exit(1);
       }
-      await runBuilderPatternExample(evmPrivateKey, svmPrivateKey, url);
+      await runBuilderPatternExample(
+        evmPrivateKey,
+        svmPrivateKey,
+        casperPrivateKeyPath,
+        casperKeyAlgorithm,
+        url,
+      );
       break;
 
     case "hooks":
-      await runHooksExample(evmPrivateKey, url);
+      await runHooksExample(evmPrivateKey, casperPrivateKeyPath, casperKeyAlgorithm, url);
       break;
 
     case "preferred-network":
@@ -63,7 +73,13 @@ async function main(): Promise<void> {
         console.error("❌ SVM_PRIVATE_KEY environment variable is required for preferred-network");
         process.exit(1);
       }
-      await runPreferredNetworkExample(evmPrivateKey, svmPrivateKey, url);
+      await runPreferredNetworkExample(
+        evmPrivateKey,
+        svmPrivateKey,
+        casperPrivateKeyPath,
+        casperKeyAlgorithm,
+        url,
+      );
       break;
 
     default:

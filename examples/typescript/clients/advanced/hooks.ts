@@ -2,6 +2,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { x402Client } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { UptoEvmScheme } from "@x402/evm/upto/client";
+import { KeyAlgorithm } from "casper-js-sdk";
+import { createClientCasperSigner } from "@x402/casper";
+import { ExactCasperScheme } from "@x402/casper/exact/client";
 
 /**
  * Hooks Example
@@ -19,9 +22,16 @@ import { UptoEvmScheme } from "@x402/evm/upto/client";
  * - Metrics and analytics collection
  *
  * @param evmPrivateKey - The EVM private key for signing
+ * @param casperPrivateKeyPath - Path to a PEM-encoded Casper private key (optional)
+ * @param casperKeyAlgorithm - "ed25519" or "secp256k1" (optional, defaults to ed25519)
  * @param url - The URL to make the request to
  */
-export async function runHooksExample(evmPrivateKey: `0x${string}`, url: string): Promise<void> {
+export async function runHooksExample(
+  evmPrivateKey: `0x${string}`,
+  casperPrivateKeyPath: string | undefined,
+  casperKeyAlgorithm: string | undefined,
+  url: string,
+): Promise<void> {
   console.log("🔧 Creating client with payment lifecycle hooks...\n");
 
   const evmSigner = privateKeyToAccount(evmPrivateKey);
@@ -53,6 +63,13 @@ export async function runHooksExample(evmPrivateKey: `0x${string}`, url: string)
       // You could attempt to recover by providing an alternative payload:
       // return { recovered: true, payload: alternativePayload };
     });
+
+  if (casperPrivateKeyPath) {
+    const algorithm =
+      casperKeyAlgorithm === "secp256k1" ? KeyAlgorithm.SECP256K1 : KeyAlgorithm.ED25519;
+    const casperSigner = await createClientCasperSigner(casperPrivateKeyPath, algorithm);
+    client.register("casper:*", new ExactCasperScheme(casperSigner));
+  }
 
   const { wrapFetchWithPayment } = await import("@x402/fetch");
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);

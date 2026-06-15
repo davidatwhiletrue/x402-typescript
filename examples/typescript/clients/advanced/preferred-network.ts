@@ -3,6 +3,9 @@ import { x402Client, type PaymentRequirements } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { UptoEvmScheme } from "@x402/evm/upto/client";
 import { ExactSvmScheme } from "@x402/svm/exact/client";
+import { KeyAlgorithm } from "casper-js-sdk";
+import { createClientCasperSigner } from "@x402/casper";
+import { ExactCasperScheme } from "@x402/casper/exact/client";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { base58 } from "@scure/base";
 import { x402HTTPClient, wrapFetchWithPayment } from "@x402/fetch";
@@ -20,11 +23,15 @@ import { x402HTTPClient, wrapFetchWithPayment } from "@x402/fetch";
  *
  * @param evmPrivateKey - The EVM private key for signing
  * @param svmPrivateKey - The SVM private key for signing
+ * @param casperPrivateKeyPath - Path to a PEM-encoded Casper private key (optional)
+ * @param casperKeyAlgorithm - "ed25519" or "secp256k1" (optional, defaults to ed25519)
  * @param url - The URL to make the request to
  */
 export async function runPreferredNetworkExample(
   evmPrivateKey: `0x${string}`,
   svmPrivateKey: string,
+  casperPrivateKeyPath: string | undefined,
+  casperKeyAlgorithm: string | undefined,
   url: string,
 ): Promise<void> {
   console.log("🎯 Creating client with preferred network selection...\n");
@@ -33,7 +40,7 @@ export async function runPreferredNetworkExample(
   const svmSigner = await createKeyPairSignerFromBytes(base58.decode(svmPrivateKey));
 
   // Define network preference order (most preferred first)
-  const networkPreferences = ["solana:", "eip155:"];
+  const networkPreferences = ["solana:", "casper:", "eip155:"];
 
   /**
    * Custom selector that picks payment options based on preference order.
@@ -75,6 +82,13 @@ export async function runPreferredNetworkExample(
     .register("eip155:*", new ExactEvmScheme(evmSigner))
     .register("eip155:*", new UptoEvmScheme(evmSigner))
     .register("solana:*", new ExactSvmScheme(svmSigner));
+
+  if (casperPrivateKeyPath) {
+    const algorithm =
+      casperKeyAlgorithm === "secp256k1" ? KeyAlgorithm.SECP256K1 : KeyAlgorithm.ED25519;
+    const casperSigner = await createClientCasperSigner(casperPrivateKeyPath, algorithm);
+    client.register("casper:*", new ExactCasperScheme(casperSigner));
+  }
 
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
