@@ -65,12 +65,7 @@ async function main(): Promise<void> {
       break;
 
     case "hooks":
-      await runHooksExample(
-        evmPrivateKey,
-        casperPrivateKeyPath,
-        casperKeyAlgorithm,
-        url,
-      );
+      await runHooksExample(evmPrivateKey, casperPrivateKeyPath, casperKeyAlgorithm, url);
       break;
 
     case "preferred-network":
