@@ -211,11 +211,9 @@ if (casperPrivateKey) {
       rpcUrlConfig: casperRpcUrl
         ? { [CASPER_NETWORK]: casperRpcUrl }
         : undefined,
-      preflightHooks: {
-        getBalance: async () => 10n ** 30n,
-        getAuthorizationState: async () => "unused",
-        assertTransferWithAuthorizationSupported: async () => {},
-      },
+      speculativeRpcUrlConfig: process.env.CASPER_SPECULATIVE_RPC_URL
+        ? { [`${CASPER_NETWORK}`]: process.env.CASPER_SPECULATIVE_RPC_URL }
+        : undefined,
     },
   );
   facilitator.register(CASPER_NETWORK, new ExactCasperScheme(casperSigner));
