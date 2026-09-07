@@ -243,7 +243,10 @@ let casperFacilitatorSigner: FacilitatorCasperSigner | undefined;
 if (process.env.FACILITATOR_CASPER_PRIVATE_KEY) {
   casperFacilitatorSigner = await createFacilitatorCasperSigner(
     process.env.FACILITATOR_CASPER_PRIVATE_KEY,
-    process.env.FACILITATOR_CASPER_PRIVATE_KEY_ALGORITHM === "secp256k1" ? 2 : 1 // Default to ED25519 if not specified);
+    process.env.FACILITATOR_CASPER_PRIVATE_KEY_ALGORITHM === "secp256k1" ? 2 : 1, // Default to ED25519 if not specified);
+    process.env.CASPER_SPECULATIVE_RPC_URL
+      ? { speculativeRpcUrlConfig: { [`${CASPER_NETWORK}`]: process.env.CASPER_SPECULATIVE_RPC_URL } }
+      : undefined,
   );
   console.info(`Casper Facilitator account: ${casperFacilitatorSigner.getAddresses(CASPER_NETWORK as Network)[0]}`);
 }
