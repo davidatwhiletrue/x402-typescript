@@ -5,6 +5,11 @@ import { NetworkConfigs } from "./constants";
 import type { ExactCasperAuthorization } from "./types";
 
 /**
+ * Casper account hash regex. "00" is the account-hash prefix.
+ */
+export const CASPER_ACCOUNTHASH_REGEX = /^00[0-9a-fA-F]{64}$/;
+
+/**
  * Casper address regex. "00" is account-hash and "01" is package hash.
  */
 export const CASPER_ADDRESS_REGEX = /^(00|01)[0-9a-fA-F]{64}$/;
@@ -55,6 +60,16 @@ export function hexToBytes(hex: string): Uint8Array {
     throw new Error("hex string contains non-hex characters");
   }
   return Conversions.decodeBase16(cleaned);
+}
+
+/**
+ * Check whether a string is a valid Casper Account Hash.
+ *
+ * @param value - Value to validate.
+ * @returns True when the value is a valid Casper Account Hash.
+ */
+export function isValidCasperAccountHash(value: string): boolean {
+  return CASPER_ACCOUNTHASH_REGEX.test(value);
 }
 
 /**

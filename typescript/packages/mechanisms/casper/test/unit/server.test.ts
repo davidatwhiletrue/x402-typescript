@@ -8,6 +8,7 @@ import {
 } from "../../src";
 
 const testPayTo = "00aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
+const customAsset = "aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
 
 function buildRequirements(overrides: Record<string, unknown> = {}) {
   return {
@@ -33,6 +34,30 @@ const supportedKind = {
 };
 
 describe("ExactCasperScheme server", () => {
+  it("should parse dollar string prices", async () => {
+    const scheme = new ExactCasperScheme();
+    const result = await scheme.parsePrice("$0.10", CASPER_TESTNET_CAIP2);
+    expect(result.amount).toBe("100000"); // 0.10 USDC = 100000 smallest units
+    expect(result.asset).toBe(CSPR_USDC_TESTNET_ASSET);
+    expect(result.extra).toEqual({ name: CSPR_USDC_NAME, version: "1" });
+    expect(result.extra).not.toHaveProperty("assetTransferMethod");
+  });
+
+  it("should parse simple number string prices", async () => {
+    const scheme = new ExactCasperScheme();
+    const result = await scheme.parsePrice("0.10", CASPER_TESTNET_CAIP2);
+    expect(result.amount).toBe("100000");
+    expect(result.asset).toBe(CSPR_USDC_TESTNET_ASSET);
+  });
+
+  it("should parse number prices", async () => {
+    const scheme = new ExactCasperScheme();
+    const result = await scheme.parsePrice(100.053, CASPER_TESTNET_CAIP2);
+    expect(result.amount).toBe("100053000");
+    expect(result.asset).toBe(CSPR_USDC_TESTNET_ASSET);
+    expect(result.extra).toEqual({ name: CSPR_USDC_NAME, version: "1" });
+  });
+
   it("returns explicit AssetAmount with extra preserved", async () => {
     const scheme = new ExactCasperScheme();
     const result = await scheme.parsePrice(
@@ -55,16 +80,13 @@ describe("ExactCasperScheme server", () => {
     const scheme = new ExactCasperScheme();
     scheme.registerMoneyParser(async () => ({
       amount: "9999",
-      asset: CSPR_USDC_TESTNET_ASSET,
+      asset: customAsset,
       extra: { name: "Custom", version: "2" },
     }));
 
-    await expect(new ExactCasperScheme().parsePrice("1.00", CASPER_TESTNET_CAIP2)).rejects.toThrow(
-      "invalid_exact_casper_server_no_default_asset",
-    );
     expect(await scheme.parsePrice(1.0, CASPER_TESTNET_CAIP2)).toEqual({
       amount: "9999",
-      asset: CSPR_USDC_TESTNET_ASSET,
+      asset: customAsset,
       extra: { name: "Custom", version: "2" },
     });
   });

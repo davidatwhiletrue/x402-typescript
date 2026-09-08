@@ -14,7 +14,12 @@ import {
   CSPR_USDC_TESTNET_ASSET,
 } from "./constants";
 
-export type CasperDefaultAsset = DefaultAsset & { name: string };
+export type CasperDefaultAsset = DefaultAsset & {
+  /** EIP-712 domain name (must match the token's domain separator) */
+  name: string;
+  /** EIP-712 domain version (must match the token's domain separator) */
+  version: string;
+};
 
 /** Default USD-pegged assets by CAIP-2 network; index 0 is the `"$0.10"` default. */
 export const DEFAULT_ASSETS: DefaultAssetTable<CasperDefaultAsset> = {
@@ -24,6 +29,7 @@ export const DEFAULT_ASSETS: DefaultAssetTable<CasperDefaultAsset> = {
       decimals: CSPR_USDC_DECIMALS,
       name: CSPR_USDC_NAME,
       symbol: CSPR_USDC_SYMBOL,
+      version: "1",
     },
   ],
   [CASPER_TESTNET_CAIP2]: [
@@ -32,6 +38,7 @@ export const DEFAULT_ASSETS: DefaultAssetTable<CasperDefaultAsset> = {
       decimals: CSPR_USDC_DECIMALS,
       name: CSPR_USDC_NAME,
       symbol: CSPR_USDC_SYMBOL,
+      version: "1",
     },
   ],
 };

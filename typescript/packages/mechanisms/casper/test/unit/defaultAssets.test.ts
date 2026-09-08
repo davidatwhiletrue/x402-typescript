@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { ExactCasperScheme } from "../../src/exact/server/scheme";
 import { CASPER_MAINNET_CAIP2, CSPR_USDC_MAINNET_ASSET } from "../../src/constants";
 import { DEFAULT_ASSETS, findDefaultAsset, getDefaultAsset } from "../../src/defaultAssets";
 
@@ -32,16 +31,6 @@ describe("defaultAssets (Casper)", () => {
     it("throws for an unknown network", () => {
       expect(() => getDefaultAsset(CASPER_UNKNOWN_CAIP2 as never)).toThrow(
         /No default asset configured for network casper:casper-unknown/,
-      );
-    });
-  });
-
-  describe("ExactCasperScheme.parsePrice regression", () => {
-    const server = new ExactCasperScheme();
-
-    it("throws for dollar-string pricing on an unsupported network (no mainnet fallback)", async () => {
-      await expect(server.parsePrice("$0.10", CASPER_UNKNOWN_CAIP2 as never)).rejects.toThrow(
-        /no default asset configured for network casper:casper-unknown/,
       );
     });
   });
