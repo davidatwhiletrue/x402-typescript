@@ -8,12 +8,11 @@ import type {
   SchemeNetworkServer,
   SupportedKind,
 } from "@x402/core/types";
-import { parseMoney } from "@x402/core/utils";
+import { convertToTokenAmount, parseMoney } from "@x402/core/utils";
 import { SCHEME_EXACT } from "../../constants";
 import { isValidCasperAddress, isValidContractPackageHash } from "../../utils";
-import { findDefaultAsset } from "../../defaultAssets";
+import { findDefaultAsset, getDefaultAsset, type CasperDefaultAsset } from "../../defaultAssets";
 
-export const ErrNoDefaultAsset = "invalid_exact_casper_server_no_default_asset";
 export const ErrInvalidAsset = "invalid_exact_casper_server_invalid_asset";
 export const ErrInvalidPayTo = "invalid_exact_casper_server_invalid_payto";
 export const ErrMissingTokenName = "invalid_exact_casper_server_missing_token_name";
@@ -73,7 +72,7 @@ export class ExactCasperScheme implements SchemeNetworkServer {
       };
     }
 
-    const { amount } = parseMoney(price);
+    const { amount, symbol } = parseMoney(price);
 
     // Try each custom money parser in order
     for (const parser of this.moneyParsers) {
@@ -83,7 +82,8 @@ export class ExactCasperScheme implements SchemeNetworkServer {
       }
     }
 
-    throw new Error(`${ErrNoDefaultAsset}: no default asset configured for network ${network}`);
+    // All custom parsers returned null, use default conversion
+    return this.defaultMoneyConversion(amount, network, symbol);
   }
 
   /**
@@ -125,6 +125,28 @@ export class ExactCasperScheme implements SchemeNetworkServer {
     return {
       ...paymentRequirements,
       extra,
+    };
+  }
+
+  /**
+   * Converts a numeric dollar amount to an AssetAmount using the default token for the network.
+   *
+   * @param amount - The decimal amount as a string
+   * @param network - The target network
+   * @param symbol - Optional ticker from a suffixed price
+   * @returns The converted asset amount with token metadata
+   */
+  private defaultMoneyConversion(amount: string, network: Network, symbol?: string): AssetAmount {
+    const defaultAsset: CasperDefaultAsset = getDefaultAsset(network, symbol);
+    const tokenAmount = convertToTokenAmount(amount, defaultAsset.decimals);
+
+    return {
+      amount: tokenAmount,
+      asset: defaultAsset.asset,
+      extra: {
+        name: defaultAsset.name,
+        version: defaultAsset.version,
+      },
     };
   }
 }

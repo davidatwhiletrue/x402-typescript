@@ -22,6 +22,7 @@ import {
   buildTransferWithAuthorizationDigest,
   hexToBytes,
   isCanonicalSecp256k1Signature,
+  isValidCasperAccountHash,
   isValidCasperAddress,
   isValidContractPackageHash,
 } from "../../utils";
@@ -305,7 +306,7 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
     ) {
       return invalid(ErrInvalidPayTo, payer);
     }
-    if (!isValidCasperAddress(payer)) {
+    if (!isValidCasperAccountHash(payer)) {
       return invalid(ErrInvalidPayer, payer);
     }
     if (
@@ -324,10 +325,12 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
       return invalid(ErrInvalidScheme, payer, "invalid validAfter/validBefore");
     }
     const now = Math.floor(Date.now() / 1000);
-    if (validAfter >= now) {
+    // Verify validAfter is not in the future
+    if (validAfter > now) {
       return invalid(ErrNotYetValid, payer, `validAfter=${validAfter} now=${now}`);
     }
-    if (now >= validBefore) {
+    // Verify validBefore is in the future (with 8 second buffer for block time)
+    if (now + 8 >= validBefore) {
       return invalid(ErrExpired, payer, `validBefore=${validBefore} now=${now}`);
     }
 
@@ -354,6 +357,18 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
     requirements: PaymentRequirements,
   ): Promise<VerifyResponse | undefined> {
     const payer = payload.authorization.from;
+    try {
+      if (payload.publicKey.slice(0, 1) !== payload.signature.slice(0, 1)) {
+        return invalid(
+          ErrInvalidSignature,
+          payer,
+          "public key and signature algorithm tags do not match",
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return invalid(ErrInvalidSignature, payer, message);
+    }
     let signatureBytes: Uint8Array;
     try {
       signatureBytes = hexToBytes(payload.signature);

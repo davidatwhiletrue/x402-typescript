@@ -58,7 +58,7 @@ export class ExactCasperScheme implements SchemeNetworkClient {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const validAfter = now - 600;
+    const validAfter = 0;
     const validBefore = now + paymentRequirements.maxTimeoutSeconds;
     const nonce = crypto.getRandomValues(new Uint8Array(32));
 

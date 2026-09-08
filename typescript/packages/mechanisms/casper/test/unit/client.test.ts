@@ -50,8 +50,7 @@ describe("ExactCasperScheme client", () => {
     const result = await scheme.createPaymentPayload(2, buildRequirements());
     const payload = result.payload as ExactCasperPayload;
 
-    expect(Number(payload.authorization.validAfter)).toBeGreaterThanOrEqual(now - 605);
-    expect(Number(payload.authorization.validAfter)).toBeLessThanOrEqual(now - 595);
+    expect(Number(payload.authorization.validAfter)).toBe(0);
     expect(Number(payload.authorization.validBefore)).toBeGreaterThanOrEqual(now + 295);
     expect(Number(payload.authorization.validBefore)).toBeLessThanOrEqual(now + 305);
   });
