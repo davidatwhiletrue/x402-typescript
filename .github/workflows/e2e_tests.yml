@@ -172,13 +172,22 @@ jobs:
           # shellcheck disable=SC1091
           source .env
           set +a
-          export SVM_RPC_URL="${SVM_TESTNET_RPC_URL:-}"
+          # Only forward a custom RPC; empty SVM_TESTNET_RPC_URL falls back to devnet in swig-setup.
+          if [[ -n "${SVM_TESTNET_RPC_URL:-}" ]]; then
+            export SVM_RPC_URL="$SVM_TESTNET_RPC_URL"
+          fi
           pnpm swig:setup
 
       - name: Run minimized e2e tests (testnet)
         if: steps.families.outputs.configured == 'true'
         run: |
           pnpm test --testnet --min --parallel -v --log=e2e-run.log --output-json=e2e-results.json --families=${{ steps.families.outputs.families }} --versions=${{ steps.families.outputs.versions }} --transport=http
+
+      # Always render the JSON breakdown into the job summary so pass/fail
+      # tables are visible at the top of the GitHub job page
+      - name: Write e2e job summary
+        if: always() && steps.families.outputs.configured == 'true'
+        run: pnpm results:summary e2e-results.json
 
       - name: Upload test results
         if: always() && steps.families.outputs.configured == 'true'
