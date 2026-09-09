@@ -358,7 +358,7 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
   ): Promise<VerifyResponse | undefined> {
     const payer = payload.authorization.from;
     try {
-      if (payload.publicKey.slice(0, 1) !== payload.signature.slice(0, 1)) {
+      if (payload.publicKey.slice(0, 2) !== payload.signature.slice(0, 2)) {
         return invalid(
           ErrInvalidSignature,
           payer,

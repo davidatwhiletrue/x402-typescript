@@ -206,9 +206,24 @@ describe("ExactCasperScheme facilitator", () => {
     invalidSignature.signature = "01" + "0".repeat(128);
     await expect(
       scheme.verify(buildPaymentPayload(invalidSignature), buildRequirements()),
-    ).resolves.toMatchObject({ isValid: false, invalidReason: ErrInvalidSignature });
+    ).resolves.toMatchObject({
+      isValid: false,
+      invalidReason: ErrInvalidSignature,
+      invalidMessage: "invalid signature",
+    });
 
-    const highS = structuredClone(payload);
+    const algoMismatch = structuredClone(payload);
+    algoMismatch.signature = "02" + payload.signature.slice(2);
+    await expect(
+      scheme.verify(buildPaymentPayload(algoMismatch), buildRequirements()),
+    ).resolves.toMatchObject({
+      isValid: false,
+      invalidReason: ErrInvalidSignature,
+      invalidMessage: "public key and signature algorithm tags do not match",
+    });
+
+    const secp256k1Payload = await createValidPayload(buildRequirements(), KeyAlgorithm.SECP256K1);
+    const highS = structuredClone(secp256k1Payload);
     highS.signature = "02" + "0".repeat(64) + "f".repeat(64);
     await expect(
       scheme.verify(buildPaymentPayload(highS), buildRequirements()),
