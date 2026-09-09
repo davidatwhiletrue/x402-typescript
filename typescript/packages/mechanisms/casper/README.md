@@ -75,28 +75,15 @@ const signer = await createFacilitatorCasperSigner(
   {
     rpcUrlConfig: { "casper:casper-test": "https://node.testnet.casper.network/rpc" },
     speculativeRpcUrlConfig: { "casper:casper-test": process.env.CASPER_SPECEXEC_RPC_URL },
-    preflightHooks: {
-      getBalance: async params => {
-        // Read CEP-18 balance for params.account.
-        return 0n;
-      },
-      getAuthorizationState: async params => {
-        // Read CEP-3009 authorization_state for params.payer and params.nonce.
-        return "unused";
-      },
-      assertTransferWithAuthorizationSupported: async params => {
-        // Fail if params.asset does not expose transfer_with_authorization.
-      },
-    },
   },
 );
 
 const facilitator = new x402Facilitator().register("casper:*", new ExactCasperScheme(signer));
 ```
 
-Preflight hooks are optional. When supplied, facilitator `verify()` uses them to check payer balance, nonce-state, and CEP-3009 contract support before settlement. When omitted, `verify()` still validates the payment shape, signature, network configuration, and any configured speculative execution, but skips the omitted live preflight checks.
+Facilitator `verify()` always performs live preflight checks after validating the payment shape and signature. If `speculativeRpcUrlConfig` contains a URL for the payment network, `verify()` runs Casper speculative execution against that endpoint and skips preflight checks; the simulation covers balance, nonce reuse, and contract entry-point failures. The speculative endpoint is network-specific and is often exposed separately from standard node JSON-RPC, commonly on port `7778`.
 
-`speculativeRpcUrlConfig` is optional. When it contains a URL for the payment network, facilitator `verify()` runs Casper speculative execution against that endpoint as a final check. The speculative endpoint is network-specific and is often exposed separately from standard node JSON-RPC, commonly on port `7778`.
+When no speculative RPC URL is configured for the payment network, `verify()` uses `rpcUrlConfig` or the SDK's default network RPC URL to run targeted checks: CEP-18 payer balance, CEP-3009 `authorization_state`, and support for `transfer_with_authorization` on the token package's active contract.
 
 ## Integration Tests
 

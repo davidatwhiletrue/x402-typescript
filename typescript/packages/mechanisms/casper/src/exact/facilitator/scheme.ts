@@ -34,8 +34,9 @@ import {
   dictionaryKeyForAddress,
   dictionaryKeyForUsedNonces,
   getActiveContractForToken,
+  isMissingDictionaryItem,
   readDictionaryBool,
-  readDictionaryU256,
+  readDictionaryU256OrDefault,
 } from "../../contracts";
 
 export const ErrInvalidScheme = "invalid_exact_casper_facilitator_invalid_scheme";
@@ -535,7 +536,7 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
     }
 
     try {
-      const balance = await readDictionaryU256(
+      const balance = await readDictionaryU256OrDefault(
         rpcClient,
         tokenContractHash,
         BALANCES_DICTIONARY,
@@ -560,8 +561,10 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
         return invalid(ErrAuthorizationUsed, payer, "authorization used or cancelled");
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return invalid(ErrAuthorizationUsed, payer, message);
+      if (!isMissingDictionaryItem(error)) {
+        const message = error instanceof Error ? error.message : String(error);
+        return invalid(ErrAuthorizationUsed, payer, message);
+      }
     }
 
     return undefined;

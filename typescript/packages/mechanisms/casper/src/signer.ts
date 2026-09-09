@@ -4,9 +4,8 @@ import { NetworkConfigs, type NetworkConfig } from "./constants";
 import type {
   ClientCasperSigner,
   FacilitatorCasperSigner,
-  FacilitatorCasperSignerOptions,
+  FacilitatorCasperSignerConfig,
   RpcUrlConfig,
-  ToFacilitatorCasperSignerOptions,
 } from "./types";
 import { chainNameFromNetwork } from "./utils";
 
@@ -68,14 +67,14 @@ export async function createClientCasperSigner(
  * Create a facilitator signer from a Casper private key.
  *
  * @param privateKey - Casper private key.
- * @param options - RPC URL and optional SpecExec URL config.
+ * @param config - RPC URL and optional SpecExec URL config.
  * @returns Facilitator signer.
  */
 export async function toFacilitatorCasperSigner(
   privateKey: PrivateKey,
-  options: ToFacilitatorCasperSignerOptions = {},
+  config: FacilitatorCasperSignerConfig,
 ): Promise<FacilitatorCasperSigner> {
-  const { rpcUrlConfig, speculativeRpcUrlConfig } = options;
+  const { rpcUrlConfig, speculativeRpcUrlConfig } = config;
   const rpcClients = new Map<string, InstanceType<typeof RpcClient>>();
 
   const getNetworkConfig = async (network: Network): Promise<NetworkConfig> => {
@@ -161,13 +160,13 @@ export async function toFacilitatorCasperSigner(
  *
  * @param privateKey - Hex-encoded private key.
  * @param algorithm - Key algorithm.
- * @param options - RPC URL and optional SpecExec URL config.
+ * @param config - RPC URL and optional SpecExec URL config.
  * @returns Facilitator signer.
  */
 export async function createFacilitatorCasperSigner(
   privateKey: string,
   algorithm: KeyAlgorithm = KeyAlgorithm.ED25519,
-  options: FacilitatorCasperSignerOptions = {},
+  config: FacilitatorCasperSignerConfig,
 ): Promise<FacilitatorCasperSigner> {
-  return toFacilitatorCasperSigner(PrivateKey.fromHex(privateKey, algorithm), options);
+  return toFacilitatorCasperSigner(PrivateKey.fromHex(privateKey, algorithm), config);
 }

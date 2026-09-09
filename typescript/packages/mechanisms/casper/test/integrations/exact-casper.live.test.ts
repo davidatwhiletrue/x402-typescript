@@ -181,12 +181,16 @@ describeLive(
       expect(accepted).toBeDefined();
 
       const verifyResponse = await server.verifyPayment(paymentPayload, accepted!);
+      expect(verifyResponse.invalidReason).toBeUndefined();
+      expect(verifyResponse.invalidMessage).toBeUndefined();
       expect(verifyResponse.isValid).toBe(true);
 
       const exactPayload = paymentPayload.payload as ExactCasperPayload;
       expect(verifyResponse.payer).toBe(exactPayload.authorization.from);
 
       const settleResponse = await server.settlePayment(paymentPayload, accepted!);
+      expect(settleResponse.errorReason).toBeUndefined();
+      expect(settleResponse.errorMessage).toBeUndefined();
       expect(settleResponse.success).toBe(true);
       expect(settleResponse.network).toBe(NETWORK);
       expect(settleResponse.transaction).toMatch(/^[0-9a-fA-F]{64}$/);

@@ -34,14 +34,10 @@ export type ExactCasperPayload = {
 
 export type RpcUrlConfig = Record<string, string>;
 
-export type SpeculativeRpcUrlConfig = Record<string, string>;
-
-export type FacilitatorCasperSignerOptions = {
+export type FacilitatorCasperSignerConfig = {
   rpcUrlConfig?: RpcUrlConfig;
-  speculativeRpcUrlConfig?: SpeculativeRpcUrlConfig;
+  speculativeRpcUrlConfig?: RpcUrlConfig;
 };
-
-export type ToFacilitatorCasperSignerOptions = FacilitatorCasperSignerOptions;
 
 /**
  * Client-side signer for Casper x402 payments.

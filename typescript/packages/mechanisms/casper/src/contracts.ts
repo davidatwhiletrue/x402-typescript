@@ -47,11 +47,17 @@ export async function getActiveContractForToken(
   const packageState = await rpcClient.queryLatestGlobalState(`hash-${assetKey}`, []);
 
   const contractKey = findActiveContractHash(packageState);
-  const contractState = await rpcClient.queryLatestGlobalState(contractKey, []);
-  if (!contractState.storedValue.contract) {
-    throw new Error("active contract not found");
+  try {
+    const contractState = await rpcClient.queryLatestGlobalState(contractKey, []);
+    if (!contractState.storedValue.contract) {
+      throw new Error("active contract not found");
+    }
+    return { ...contractState.storedValue.contract, contractHash: contractKey };
+  } catch (error) {
+    throw new Error(
+      `failed to get active contract for token: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
-  return { ...contractState.storedValue.contract, contractHash: contractKey };
 }
 
 function contractVersionHash(version: CasperContractVersion): string {
@@ -92,7 +98,7 @@ function findActiveContractHash(packageState: CasperStateResult): string {
   throw new Error("token package not found");
 }
 
-export async function readDictionaryU256(
+export async function readDictionaryU256OrDefault(
   rpcClient: InstanceType<typeof RpcClient>,
   contractHash: string,
   dictionaryName: string,
@@ -128,9 +134,12 @@ async function readDictionaryItem(
   );
 }
 
-function isMissingDictionaryItem(error: unknown): boolean {
-  const text = error instanceof Error ? error.message : String(error);
-  return /dictionary item|ValueNotFound|KeyNotFound|not found|does not exist/i.test(text);
+function hasSourceErr(error: unknown): error is { sourceErr: { data?: unknown } } {
+  return typeof error === "object" && error !== null && "sourceErr" in error;
+}
+
+export function isMissingDictionaryItem(error: unknown): boolean {
+  return hasSourceErr(error) && /dictionary URef not found/i.test(String(error.sourceErr?.data));
 }
 
 export function dictionaryKeyForAddress(address: string): string {
@@ -151,16 +160,9 @@ export async function readDictionaryBool(
   dictionaryName: string,
   itemKey: string,
 ): Promise<boolean> {
-  try {
-    return parseUsedNonceResult(
-      await readDictionaryItem(rpcClient, contractKey, dictionaryName, itemKey),
-    );
-  } catch (error) {
-    if (isMissingDictionaryItem(error)) {
-      return false;
-    }
-    throw error;
-  }
+  return parseUsedNonceResult(
+    await readDictionaryItem(rpcClient, contractKey, dictionaryName, itemKey),
+  );
 }
 
 function parseUsedNonceResult(result: StateGetDictionaryResult): boolean {
