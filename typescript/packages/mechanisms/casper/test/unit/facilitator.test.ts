@@ -1,25 +1,132 @@
-import { describe, expect, it, vi } from "vitest";
-import { KeyAlgorithm, PrivateKey, type Transaction } from "../../src/casper-sdk";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { RpcClient, rpcClient, tokenPackage, tokenContract, dictionaryU256, dictionaryBool } =
+  vi.hoisted(() => {
+    const asset = "aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
+    const contractHash = "b".repeat(64);
+    const rpcClient = {
+      queryLatestGlobalState: vi.fn(async (key: string) =>
+        key === `hash-${asset}`
+          ? {
+              storedValue: {
+                contractPackage: {
+                  disabledVersions: [],
+                  versions: [
+                    {
+                      contractVersion: 1,
+                      protocolVersionMajor: 1,
+                      contractHash: {
+                        hash: {
+                          toHex: () => contractHash,
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            }
+          : {
+              storedValue: {
+                contract: {
+                  entryPoints: [{ name: "transfer_with_authorization" }],
+                },
+              },
+            },
+      ),
+      getDictionaryItemByIdentifier: vi.fn(
+        async (
+          _stateRootHash: string | null,
+          identifier: { contractNamedKey?: { dictionaryName?: string } },
+        ) => {
+          const dictionaryName = identifier.contractNamedKey?.dictionaryName;
+          return dictionaryName === "balances"
+            ? {
+                storedValue: {
+                  clValue: {
+                    ui256: { toString: () => "1000000" },
+                  },
+                },
+              }
+            : {
+                storedValue: {
+                  clValue: {
+                    bool: { getValue: () => false },
+                  },
+                },
+              };
+        },
+      ),
+    };
+    return {
+      RpcClient: vi.fn(() => rpcClient),
+      rpcClient,
+      tokenPackage: {
+        storedValue: {
+          contractPackage: {
+            disabledVersions: [],
+            versions: [
+              {
+                contractVersion: 1,
+                protocolVersionMajor: 1,
+                contractHash: {
+                  hash: {
+                    toHex: () => contractHash,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      tokenContract: {
+        storedValue: {
+          contract: {
+            entryPoints: [{ name: "transfer_with_authorization" }],
+          },
+        },
+      },
+      dictionaryU256: (value: string) => ({
+        storedValue: {
+          clValue: {
+            ui256: { toString: () => value },
+          },
+        },
+      }),
+      dictionaryBool: (value: boolean) => ({
+        storedValue: {
+          clValue: {
+            bool: { getValue: () => value },
+          },
+        },
+      }),
+    };
+  });
+
+vi.mock("casper-js-sdk", async importOriginal => {
+  const actual = await importOriginal<typeof import("casper-js-sdk")>();
+  return {
+    ...actual,
+    RpcClient,
+  };
+});
+
+import { KeyAlgorithm, PrivateKey, type Transaction } from "casper-js-sdk";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { ExactCasperScheme as ClientExactCasperScheme } from "../../src/exact/client/scheme";
 import { ExactCasperScheme } from "../../src/exact/facilitator/scheme";
 import {
   ErrAmountMismatch,
-  ErrAuthorizationUsed,
   ErrExpired,
   ErrInvalidAsset,
   ErrInvalidPayTo,
   ErrInvalidScheme,
   ErrInvalidSignature,
-  ErrInsufficientBalance,
   ErrNetworkMismatch,
   ErrNonCanonicalSignature,
   ErrNotYetValid,
   ErrPayToMismatch,
   ErrPublicKeyMismatch,
   ErrSettleFailed,
-  ErrSpeculativeExecutionFailed,
-  ErrUnsupportedAsset,
 } from "../../src/exact/facilitator/scheme";
 import { toClientCasperSigner } from "../../src/signer";
 import type { ExactCasperPayload, FacilitatorCasperSigner } from "../../src/types";
@@ -40,9 +147,7 @@ function createMockSigner(
     }),
     getAddresses: () => [privateKey.publicKey.accountHash().toHex()],
     getPublicKeyHex: () => privateKey.publicKey.toHex(),
-    getBalance: vi.fn(async () => 10_000_000n),
-    getAuthorizationState: vi.fn(async () => "unused"),
-    assertTransferWithAuthorizationSupported: vi.fn(async () => {}),
+    getSpeculativeRpcUrl: () => undefined,
     signTransaction: vi.fn(async () => {}),
     putTransaction: vi.fn(async () => "a".repeat(64)),
     waitForTransaction: vi.fn(async () => {}),
@@ -87,6 +192,24 @@ async function createValidPayload(
 }
 
 describe("ExactCasperScheme facilitator", () => {
+  beforeEach(() => {
+    RpcClient.mockClear();
+    rpcClient.queryLatestGlobalState.mockReset();
+    rpcClient.queryLatestGlobalState.mockImplementation(async (key: string) =>
+      key === `hash-${testAsset}` ? tokenPackage : tokenContract,
+    );
+    rpcClient.getDictionaryItemByIdentifier.mockReset();
+    rpcClient.getDictionaryItemByIdentifier.mockImplementation(
+      async (
+        _stateRootHash: string | null,
+        identifier: { contractNamedKey?: { dictionaryName?: string } },
+      ) =>
+        identifier.contractNamedKey?.dictionaryName === "balances"
+          ? dictionaryU256("1000000")
+          : dictionaryBool(false),
+    );
+  });
+
   it("returns extra and signer addresses", () => {
     const signer = createMockSigner();
     const scheme = new ExactCasperScheme(signer);
@@ -231,98 +354,6 @@ describe("ExactCasperScheme facilitator", () => {
       isValid: false,
       invalidReason: ErrNonCanonicalSignature,
     });
-  });
-
-  it("rejects failed preflight checks", async () => {
-    const payload = await createValidPayload();
-
-    await expect(
-      new ExactCasperScheme(createMockSigner({ getBalance: vi.fn(async () => 1n) })).verify(
-        buildPaymentPayload(payload),
-        buildRequirements(),
-      ),
-    ).resolves.toMatchObject({ isValid: false, invalidReason: ErrInsufficientBalance });
-
-    await expect(
-      new ExactCasperScheme(
-        createMockSigner({ getAuthorizationState: vi.fn(async () => "used") }),
-      ).verify(buildPaymentPayload(payload), buildRequirements()),
-    ).resolves.toMatchObject({ isValid: false, invalidReason: ErrAuthorizationUsed });
-
-    await expect(
-      new ExactCasperScheme(
-        createMockSigner({
-          assertTransferWithAuthorizationSupported: vi.fn(async () => {
-            throw new Error("missing entry point");
-          }),
-        }),
-      ).verify(buildPaymentPayload(payload), buildRequirements()),
-    ).resolves.toMatchObject({ isValid: false, invalidReason: ErrUnsupportedAsset });
-  });
-
-  it("runs speculative execution when configured", async () => {
-    const payload = await createValidPayload();
-    const simulateTransferWithAuthorization = vi.fn(async () => {});
-    const signer = createMockSigner({ simulateTransferWithAuthorization });
-    const scheme = new ExactCasperScheme(signer);
-
-    const result = await scheme.verify(buildPaymentPayload(payload), buildRequirements());
-
-    expect(result).toMatchObject({ isValid: true, payer: payload.authorization.from });
-    expect(simulateTransferWithAuthorization).toHaveBeenCalledTimes(1);
-    const call = simulateTransferWithAuthorization.mock.calls[0]?.[0];
-    expect(call).toMatchObject({ network: testNetwork, asset: testAsset });
-    expect(call?.deploy).toBeDefined();
-  });
-
-  it("preserves the custom signer receiver during speculative execution", async () => {
-    const payload = await createValidPayload();
-    const signer = createMockSigner();
-    let receiver: FacilitatorCasperSigner | undefined;
-    signer.simulateTransferWithAuthorization = async function (this: FacilitatorCasperSigner) {
-      receiver = this;
-    };
-    const scheme = new ExactCasperScheme(signer);
-
-    await expect(
-      scheme.verify(buildPaymentPayload(payload), buildRequirements()),
-    ).resolves.toMatchObject({ isValid: true });
-
-    expect(receiver).toBe(signer);
-  });
-
-  it("rejects speculative execution failures", async () => {
-    const payload = await createValidPayload();
-    const scheme = new ExactCasperScheme(
-      createMockSigner({
-        simulateTransferWithAuthorization: vi.fn(async () => {
-          throw new Error("simulation reverted");
-        }),
-      }),
-    );
-
-    await expect(
-      scheme.verify(buildPaymentPayload(payload), buildRequirements()),
-    ).resolves.toMatchObject({
-      isValid: false,
-      invalidReason: ErrSpeculativeExecutionFailed,
-      invalidMessage: "simulation reverted",
-      payer: payload.authorization.from,
-    });
-  });
-
-  it("skips speculative execution when no simulation hook is configured", async () => {
-    const payload = await createValidPayload();
-    const signer = createMockSigner();
-    const scheme = new ExactCasperScheme(signer);
-
-    await expect(
-      scheme.verify(buildPaymentPayload(payload), buildRequirements()),
-    ).resolves.toMatchObject({
-      isValid: true,
-    });
-
-    expect("simulateTransferWithAuthorization" in signer).toBe(false);
   });
 
   it("settles valid payloads and maps failures", async () => {

@@ -1,4 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { newSpeculativeClient, speculativeExec } = vi.hoisted(() => {
+  const speculativeExec = vi.fn(async () => ({ executionResult: {} }));
+  return {
+    newSpeculativeClient: vi.fn(() => ({ speculativeExec })),
+    speculativeExec,
+  };
+});
+
+vi.mock("casper-js-sdk", async importOriginal => {
+  const actual = await importOriginal<typeof import("casper-js-sdk")>();
+  return {
+    ...actual,
+    SpeculativeClient: {
+      newSpeculativeClient,
+    },
+  };
+});
+
 import { x402Client, x402HTTPClient } from "@x402/core/client";
 import { x402Facilitator } from "@x402/core/facilitator";
 import {
@@ -16,17 +35,13 @@ import type {
   SupportedResponse,
   VerifyResponse,
 } from "@x402/core/types";
-import { KeyAlgorithm, PrivateKey, type Transaction } from "../../src/casper-sdk";
+import { KeyAlgorithm, PrivateKey, type Transaction } from "casper-js-sdk";
 import { CASPER_TESTNET_CAIP2 } from "../../src/constants";
 import { ExactCasperScheme as ExactCasperClient } from "../../src/exact/client/scheme";
 import { ExactCasperScheme as ExactCasperFacilitator } from "../../src/exact/facilitator/scheme";
 import { ExactCasperScheme as ExactCasperServer } from "../../src/exact/server/scheme";
 import { toClientCasperSigner } from "../../src/signer";
-import type {
-  CasperAuthorizationState,
-  ExactCasperPayload,
-  FacilitatorCasperSigner,
-} from "../../src/types";
+import type { ExactCasperPayload, FacilitatorCasperSigner } from "../../src/types";
 
 const NETWORK = CASPER_TESTNET_CAIP2 as Network;
 const ASSET = "aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
@@ -99,9 +114,7 @@ function createMockFacilitatorSigner(
     }),
     getAddresses: () => [FACILITATOR_ADDRESS],
     getPublicKeyHex: () => FACILITATOR_PRIVATE_KEY.publicKey.toHex(),
-    // getBalance: vi.fn(async () => 10n ** 30n),
-    getAuthorizationState: vi.fn(async (): Promise<CasperAuthorizationState> => "unused"),
-    assertTransferWithAuthorizationSupported: vi.fn(async () => {}),
+    getSpeculativeRpcUrl: () => "http://localhost:7778/rpc",
     signTransaction: vi.fn(async (_transaction: Transaction) => {}),
     putTransaction: vi.fn(async () => "a".repeat(64)),
     waitForTransaction: vi.fn(async () => {}),
@@ -156,6 +169,12 @@ async function buildServer(
 }
 
 describe("Casper integration", () => {
+  beforeEach(() => {
+    newSpeculativeClient.mockClear();
+    speculativeExec.mockReset();
+    speculativeExec.mockResolvedValue({ executionResult: {} });
+  });
+
   describe("x402Client / x402ResourceServer / x402Facilitator - Casper flow", () => {
     let client: x402Client;
     let server: x402ResourceServer;
@@ -230,22 +249,15 @@ describe("Casper integration", () => {
     });
 
     it("maps settlement verification failures to unsuccessful settlement responses", async () => {
-      server = await buildServer(
-        createMockFacilitatorSigner({
-          getAuthorizationState: vi.fn(async (): Promise<CasperAuthorizationState> => "used"),
-        }),
-      );
       const accepts = [buildPaymentRequirements()];
       const paymentRequired = await server.createPaymentRequiredResponse(accepts, resource);
       const paymentPayload = await client.createPaymentPayload(paymentRequired);
-      const accepted = server.findMatchingRequirements(accepts, paymentPayload);
+      const tamperedRequirements = buildPaymentRequirements({ amount: "10001" });
 
-      const settleResponse = await server.settlePayment(paymentPayload, accepted!);
+      const settleResponse = await server.settlePayment(paymentPayload, tamperedRequirements);
 
       expect(settleResponse.success).toBe(false);
-      expect(settleResponse.errorReason).toBe(
-        "invalid_exact_casper_facilitator_authorization_used",
-      );
+      expect(settleResponse.errorReason).toBe("invalid_exact_casper_facilitator_amount_mismatch");
       expect(settleResponse.payer).toBe(CLIENT_ADDRESS);
       expect(settleResponse.transaction).toBe("");
     });
@@ -484,15 +496,15 @@ describe("Casper integration", () => {
       expect(premium[0].extra?.tier).toBe("premium");
     });
 
-    it("throws for money prices when no Casper money parser supplies a default asset", async () => {
+    it("throws for money prices with an unknown Casper default asset symbol", async () => {
       await expect(
         server.buildPaymentRequirements({
           scheme: "exact",
           payTo: PAY_TO,
-          price: "$1.00",
+          price: "$1.00 UNKNOWN",
           network: NETWORK,
         }),
-      ).rejects.toThrow("invalid_exact_casper_server_no_default_asset");
+      ).rejects.toThrow(`No UNKNOWN default asset configured for network ${NETWORK}`);
     });
 
     it("throws when AssetAmount omits required Casper token metadata", async () => {

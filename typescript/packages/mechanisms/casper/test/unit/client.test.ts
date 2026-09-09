@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KeyAlgorithm, PrivateKey } from "../../src/casper-sdk";
+import { KeyAlgorithm, PrivateKey } from "casper-js-sdk";
 import { ExactCasperScheme } from "../../src/exact/client/scheme";
 import { toClientCasperSigner } from "../../src/signer";
 import type { ExactCasperPayload } from "../../src/types";

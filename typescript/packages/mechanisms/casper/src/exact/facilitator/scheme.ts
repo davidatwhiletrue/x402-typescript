@@ -12,11 +12,15 @@ import {
   CLTypeUInt8,
   CLValue,
   ContractCallBuilder,
+  HttpHandler,
   Key,
   PublicKey,
+  RpcClient,
+  SpeculativeClient,
   Transaction,
-} from "../../casper-sdk";
+} from "casper-js-sdk";
 import { CASPER_CAIP2_FAMILY, DEFAULT_PAYMENT_MOTES, SCHEME_EXACT } from "../../constants";
+import type { NetworkConfig } from "../../constants";
 import type { ExactCasperPayload, FacilitatorCasperSigner } from "../../types";
 import {
   buildTransferWithAuthorizationDigest,
@@ -26,6 +30,13 @@ import {
   isValidCasperAddress,
   isValidContractPackageHash,
 } from "../../utils";
+import {
+  dictionaryKeyForAddress,
+  dictionaryKeyForUsedNonces,
+  getActiveContractForToken,
+  readDictionaryBool,
+  readDictionaryU256,
+} from "../../contracts";
 
 export const ErrInvalidScheme = "invalid_exact_casper_facilitator_invalid_scheme";
 export const ErrNetworkMismatch = "invalid_exact_casper_facilitator_network_mismatch";
@@ -44,10 +55,15 @@ export const ErrMissingTokenName = "invalid_exact_casper_facilitator_missing_tok
 export const ErrMissingTokenVersion = "invalid_exact_casper_facilitator_missing_token_version";
 export const ErrFailedToHash = "invalid_exact_casper_facilitator_failed_to_hash";
 export const ErrInsufficientBalance = "invalid_exact_casper_facilitator_insufficient_balance";
-export const ErrAuthorizationUsed = "invalid_exact_casper_facilitator_authorization_used";
+export const ErrAuthorizationUsed =
+  "invalid_exact_casper_facilitator_authorization_used_or_canceled";
 export const ErrUnsupportedAsset = "invalid_exact_casper_facilitator_unsupported_asset";
 export const ErrSpeculativeExecutionFailed =
   "invalid_exact_casper_facilitator_speculative_execution_failed";
+
+const TRANSFER_WITH_AUTHORIZATION_ENTRY_POINT = "transfer_with_authorization";
+const BALANCES_DICTIONARY = "balances";
+const AUTHORIZATION_STATE_DICTIONARY = "authorization_state";
 
 /**
  * Facilitator configuration for exact Casper.
@@ -74,6 +90,11 @@ function invalid(invalidReason: string, payer?: string, invalidMessage?: string)
 export class ExactCasperScheme implements SchemeNetworkFacilitator {
   readonly scheme = SCHEME_EXACT;
   readonly caipFamily = CASPER_CAIP2_FAMILY;
+  private readonly rpcClients = new Map<string, InstanceType<typeof RpcClient>>();
+  private readonly speculativeClients = new Map<
+    string,
+    ReturnType<typeof SpeculativeClient.newSpeculativeClient>
+  >();
 
   /**
    * Create an exact Casper facilitator scheme.
@@ -149,14 +170,6 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
     const preflightValidation = await this.validatePreflight(exactPayload, requirements);
     if (preflightValidation) {
       return preflightValidation;
-    }
-
-    const simulationValidation = await this.validateSpeculativeExecution(
-      exactPayload,
-      requirements,
-    );
-    if (simulationValidation) {
-      return simulationValidation;
     }
 
     return { isValid: true, payer };
@@ -425,6 +438,40 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
   }
 
   /**
+   * Get or create a cached RPC client for the given URL.
+   *
+   * @param rpcUrl - RPC node URL.
+   * @returns RPC client.
+   */
+  private getRpcClient(rpcUrl: string): InstanceType<typeof RpcClient> {
+    const existing = this.rpcClients.get(rpcUrl);
+    if (existing) {
+      return existing;
+    }
+    const client = new RpcClient(new HttpHandler(rpcUrl));
+    this.rpcClients.set(rpcUrl, client);
+    return client;
+  }
+
+  /**
+   * Get or create a cached speculative execution client for the given URL.
+   *
+   * @param speculativeRpcUrl - Speculative RPC node URL.
+   * @returns Speculative execution client.
+   */
+  private getSpeculativeClient(
+    speculativeRpcUrl: string,
+  ): ReturnType<typeof SpeculativeClient.newSpeculativeClient> {
+    const existing = this.speculativeClients.get(speculativeRpcUrl);
+    if (existing) {
+      return existing;
+    }
+    const client = SpeculativeClient.newSpeculativeClient(new HttpHandler(speculativeRpcUrl));
+    this.speculativeClients.set(speculativeRpcUrl, client);
+    return client;
+  }
+
+  /**
    * Validate live preflight requirements.
    *
    * @param payload - Exact Casper payload.
@@ -436,56 +483,85 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
     requirements: PaymentRequirements,
   ): Promise<VerifyResponse | undefined> {
     const payer = payload.authorization.from;
+    let networkConfig: NetworkConfig;
     try {
-      await this.signer.getNetworkConfig(requirements.network);
+      networkConfig = await this.signer.getNetworkConfig(requirements.network);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return invalid(ErrNetworkMismatch, payer, message);
     }
 
-    if (this.signer.getBalance) {
-      try {
-        const balance = await this.signer.getBalance({
-          network: requirements.network,
-          asset: requirements.asset,
-          account: payer,
-        });
-        if (balance < BigInt(requirements.amount)) {
-          return invalid(ErrInsufficientBalance, payer);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return invalid(ErrInsufficientBalance, payer, message);
-      }
+    const speculativeRpcUrl = this.signer.getSpeculativeRpcUrl(requirements.network);
+    if (speculativeRpcUrl) {
+      return this.validateSpeculativeExecution(payload, requirements, speculativeRpcUrl);
     }
 
-    if (this.signer.getAuthorizationState) {
-      try {
-        const state = await this.signer.getAuthorizationState({
-          network: requirements.network,
-          asset: requirements.asset,
+    return this.validateTargetedPreflight(payload, requirements, networkConfig.rpcUrl);
+  }
+
+  /**
+   * Validate live preflight requirements via targeted RPC reads.
+   *
+   * @param payload - Exact Casper payload.
+   * @param requirements - Payment requirements.
+   * @param rpcUrl - RPC node URL.
+   * @returns Invalid response or undefined.
+   */
+  private async validateTargetedPreflight(
+    payload: ExactCasperPayload,
+    requirements: PaymentRequirements,
+    rpcUrl: string,
+  ): Promise<VerifyResponse | undefined> {
+    const payer = payload.authorization.from;
+    const rpcClient = this.getRpcClient(rpcUrl);
+    let tokenContractHash: string;
+
+    try {
+      const tokenContract = await getActiveContractForToken(rpcClient, requirements.asset);
+      tokenContractHash = tokenContract.contractHash;
+      const supportsTransferWithAuthorization = (tokenContract.entryPoints ?? []).some(
+        entryPoint => entryPoint.name === TRANSFER_WITH_AUTHORIZATION_ENTRY_POINT,
+      );
+      if (!supportsTransferWithAuthorization) {
+        return invalid(
+          ErrUnsupportedAsset,
           payer,
-          nonce: payload.authorization.nonce,
-        });
-        if (state !== "unused") {
-          return invalid(ErrAuthorizationUsed, payer, state);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return invalid(ErrAuthorizationUsed, payer, message);
+          `missing ${TRANSFER_WITH_AUTHORIZATION_ENTRY_POINT}`,
+        );
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return invalid(ErrUnsupportedAsset, payer, message);
     }
 
-    if (this.signer.assertTransferWithAuthorizationSupported) {
-      try {
-        await this.signer.assertTransferWithAuthorizationSupported({
-          network: requirements.network,
-          asset: requirements.asset,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return invalid(ErrUnsupportedAsset, payer, message);
+    try {
+      const balance = await readDictionaryU256(
+        rpcClient,
+        tokenContractHash,
+        BALANCES_DICTIONARY,
+        dictionaryKeyForAddress(payer),
+      );
+      if (balance < BigInt(requirements.amount)) {
+        return invalid(ErrInsufficientBalance, payer);
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return invalid(ErrInsufficientBalance, payer, message);
+    }
+
+    try {
+      const usedNonce = await readDictionaryBool(
+        rpcClient,
+        tokenContractHash,
+        AUTHORIZATION_STATE_DICTIONARY,
+        dictionaryKeyForUsedNonces(payer, payload.authorization.nonce),
+      );
+      if (usedNonce) {
+        return invalid(ErrAuthorizationUsed, payer, "authorization used or cancelled");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return invalid(ErrAuthorizationUsed, payer, message);
     }
 
     return undefined;
@@ -496,16 +572,14 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
    *
    * @param payload - Exact Casper payload.
    * @param requirements - Payment requirements.
+   * @param speculativeRpcUrl - Speculative RPC node URL.
    * @returns Invalid response or undefined.
    */
   private async validateSpeculativeExecution(
     payload: ExactCasperPayload,
     requirements: PaymentRequirements,
+    speculativeRpcUrl: string,
   ): Promise<VerifyResponse | undefined> {
-    if (!this.signer.simulateTransferWithAuthorization) {
-      return undefined;
-    }
-
     const payer = payload.authorization.from;
     try {
       const transaction = await this.buildTransferWithAuthorizationTransaction(
@@ -522,17 +596,24 @@ export class ExactCasperScheme implements SchemeNetworkFacilitator {
           "buildFor1_5 did not produce a deploy",
         );
       }
-      await this.signer.simulateTransferWithAuthorization({
-        network: requirements.network,
-        asset: requirements.asset,
+      const result = await this.getSpeculativeClient(speculativeRpcUrl).speculativeExec(
+        "1",
         deploy,
-      });
+      );
+      const v2ErrorMessage = result.executionResult?.errorMessage;
+      if (v2ErrorMessage) {
+        throw new Error(`speculative execution failed: ${v2ErrorMessage}`);
+      }
+      if (result.executionResult) {
+        return undefined;
+      }
+
+      const rawJSON = result.rawJSON === undefined ? "" : `: ${JSON.stringify(result.rawJSON)}`;
+      throw new Error(`speculative execution returned an unrecognized response: ${rawJSON}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return invalid(ErrSpeculativeExecutionFailed, payer, message);
     }
-
-    return undefined;
   }
 }
 

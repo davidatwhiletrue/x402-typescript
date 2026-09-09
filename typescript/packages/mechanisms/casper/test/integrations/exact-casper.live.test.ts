@@ -15,7 +15,7 @@ import { ExactCasperScheme as ExactCasperClient } from "../../src/exact/client/s
 import { ExactCasperScheme as ExactCasperFacilitator } from "../../src/exact/facilitator/scheme";
 import { ExactCasperScheme as ExactCasperServer } from "../../src/exact/server/scheme";
 import { createClientCasperSigner, createFacilitatorCasperSigner } from "../../src/signer";
-import type { CasperAuthorizationState, ExactCasperPayload } from "../../src/types";
+import type { ExactCasperPayload } from "../../src/types";
 
 const CLIENT_PRIVATE_KEY = process.env.CASPER_CLIENT_PRIVATE_KEY;
 const CLIENT_PRIVATE_KEY_ALGORITHM =
@@ -115,11 +115,6 @@ describeLive(
         FACILITATOR_PRIVATE_KEY_ALGORITHM,
         {
           rpcUrlConfig: { [NETWORK]: RPC_URL },
-          preflightHooks: {
-            // getBalance: async () => 10n ** 30n,
-            getAuthorizationState: async (): Promise<CasperAuthorizationState> => "unused",
-            assertTransferWithAuthorizationSupported: async () => {},
-          },
           speculativeRpcUrlConfig: SPECEXEC_RPC_URL ? { [NETWORK]: SPECEXEC_RPC_URL } : undefined,
         },
       );

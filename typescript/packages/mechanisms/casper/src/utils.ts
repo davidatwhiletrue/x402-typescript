@@ -1,6 +1,6 @@
 import type { Network } from "@x402/core/types";
 import { buildDomain, CASPER_DOMAIN_TYPES, hashTypedData } from "@casper-ecosystem/casper-eip-712";
-import { Conversions } from "./casper-sdk";
+import { Conversions } from "casper-js-sdk";
 import { NetworkConfigs } from "./constants";
 import type { ExactCasperAuthorization } from "./types";
 

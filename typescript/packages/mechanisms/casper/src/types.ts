@@ -1,5 +1,5 @@
 import type { Network } from "@x402/core/types";
-import type { Deploy, Transaction } from "casper-js-sdk";
+import type { Transaction } from "casper-js-sdk";
 import type { NetworkConfig } from "./constants";
 
 /**
@@ -32,56 +32,16 @@ export type ExactCasperPayload = {
   authorization: ExactCasperAuthorization;
 };
 
-/**
- * CEP-3009 authorization state.
- */
-export type CasperAuthorizationState = "unused" | "used" | "canceled";
-
-/**
- * Parameters for balance reads.
- */
-export type CasperBalanceParams = {
-  network: Network;
-  asset: string;
-  account: string;
-};
-
-/**
- * Parameters for CEP-3009 authorization state reads.
- */
-export type CasperPreflightParams = {
-  network: Network;
-  asset: string;
-  payer: string;
-  nonce: string;
-};
-
 export type RpcUrlConfig = Record<string, string>;
 
 export type SpeculativeRpcUrlConfig = Record<string, string>;
 
-export type PreflightHooks = {
-  getBalance?: (params: CasperBalanceParams) => Promise<bigint>;
-  getAuthorizationState?: (params: CasperPreflightParams) => Promise<CasperAuthorizationState>;
-  assertTransferWithAuthorizationSupported?: (params: {
-    network: Network;
-    asset: string;
-  }) => Promise<void>;
-};
-
 export type FacilitatorCasperSignerOptions = {
   rpcUrlConfig?: RpcUrlConfig;
-  preflightHooks?: PreflightHooks;
   speculativeRpcUrlConfig?: SpeculativeRpcUrlConfig;
 };
 
 export type ToFacilitatorCasperSignerOptions = FacilitatorCasperSignerOptions;
-
-export type CasperSpeculativeTransferParams = {
-  network: Network;
-  asset: string;
-  deploy: Deploy;
-};
 
 /**
  * Client-side signer for Casper x402 payments.
@@ -105,17 +65,8 @@ export type FacilitatorCasperSigner = {
   getAddresses(network: Network): string[];
   /** Get the facilitator public key for settlement transactions. */
   getPublicKeyHex(network: Network): string;
-  /** Read payer balance for the required asset. */
-  getBalance?(params: CasperBalanceParams): Promise<bigint>;
-  /** Read CEP-3009 authorization state for the payer and nonce. */
-  getAuthorizationState?(params: CasperPreflightParams): Promise<CasperAuthorizationState>;
-  /** Fail when the asset cannot support CEP-3009 transfer_with_authorization. */
-  assertTransferWithAuthorizationSupported?(params: {
-    network: Network;
-    asset: string;
-  }): Promise<void>;
-  /** Simulate a transfer before submission. */
-  simulateTransferWithAuthorization?(params: CasperSpeculativeTransferParams): Promise<void>;
+  /** Resolve an optional speculative execution RPC URL for the network. */
+  getSpeculativeRpcUrl(network: Network): string | undefined;
   /** Sign a Casper transaction. */
   signTransaction(transaction: Transaction, network: Network): Promise<void>;
   /** Submit a Casper transaction and return its hash. */
