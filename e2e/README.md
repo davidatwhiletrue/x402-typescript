@@ -211,6 +211,7 @@ CLIENT_HEDERA_ACCOUNT_ID=0.0....    # Hedera account id for client payments
 CLIENT_HEDERA_PRIVATE_KEY=0x...     # Hedera ECDSA private key for client payments
 CLIENT_KEETA_MNEMONIC=...           # Keeta mnemonic for client payments
 CLIENT_STELLAR_PRIVATE_KEY=...      # Stellar private key for client payments
+CLIENT_CARDANO_MNEMONIC=...         # Cardano wallet mnemonic (24 words) for client payments
 CLIENT_TVM_PRIVATE_KEY=...          # TVM private key for client payments
 CLIENT_NEAR_ACCOUNT_ID=...          # NEAR payer account id that owns the access key
 CLIENT_NEAR_PRIVATE_KEY=ed25519:... # NEAR private key for that payer account
@@ -246,6 +247,7 @@ FACILITATOR_STELLAR_PRIVATE_KEY=... # Stellar private key for facilitator
 FACILITATOR_TVM_PRIVATE_KEY=...     # TVM private key for facilitator
 FACILITATOR_NEAR_ACCOUNT_ID=...     # NEAR relayer account id (submits meta-tx, sponsors gas)
 FACILITATOR_NEAR_PRIVATE_KEY=ed25519:... # NEAR relayer private key
+FACILITATOR_CARDANO_MNEMONIC=...    # Optional: the Cardano facilitator only broadcasts, so it runs provider-only without a mnemonic
 # XRPL needs no facilitator wallet — the facilitator is keyless (payer signs and pays fees)
 
 # Casper CEP-18 support
@@ -257,6 +259,14 @@ CASPER_AMOUNT=1                     # Optional; defaults to 1
 # Casper network override
 CASPER_TESTNET_RPC_URL=https://node.testnet.casper.network/rpc # Optional; defaults by network
 CASPER_SPECULATIVE_RPC_URL=https://node-specexec.testnet.casper.network/rpc # Optional
+
+BLOCKFROST_PROJECT_ID=preprod...    # Blockfrost preprod project id (get one at blockfrost.io)
+CARDANO_TESTNET_RPC_URL=...         # Optional Blockfrost base URL override (default https://cardano-preprod.blockfrost.io/api/v0)
+CARDANO_L1_CONFIRMATIONS=           # Optional (-1..20). Unset = 1 confirmation; -1 = mempool (faster local runs)
+SERVER_CARDANO_SELLER_MNEMONIC=     # Masumi quote signer (no funds needed)
+# SERVER_CARDANO_SCRIPT_ADDRESS=    # Optional script-route payee (default: always-succeeds fixture)
+# SERVER_CARDANO_SCRIPT_CODE=       # Optional script-route validator hex
+# SERVER_CARDANO_SCRIPT_DATUM=      # Optional script-route inline datum hex
 
 # Concordium network override
 CCD_NETWORK=ccd:4221332d34e1694168c2a0c0b3fd0f27  # Optional; defaults to testnet
@@ -364,10 +374,8 @@ You need **three separate NEAR testnet accounts** for e2e tests — client (paye
 2. Fund the **facilitator (relayer)** account with testnet NEAR for gas from the [NEAR faucet](https://near-faucet.io/). The relayer submits the NEP-366 `SignedDelegate` and sponsors gas, so the payer spends zero gas.
 3. Give the **client (payer)** the payment token. The default asset is **wNEAR** (`wrap.testnet`, a NEP-141): wrap NEAR via `wrap.testnet` `near_deposit`. Both payer and merchant must be `storage_deposit`-registered on the token contract.
 
-> **Note:** payer key = `CLIENT_NEAR_*`, relayer key = `FACILITATOR_NEAR_*`, merchant = `SERVER_NEAR_ADDRESS`. `CLIENT_NEAR_ACCOUNT_ID` is required because a NEAR private key identifies a public key, but the signer must also know which account owns that access key to read its nonce and set the delegated action `senderId`. Override the token with `SERVER_NEAR_ASSET` / `SERVER_NEAR_AMOUNT` (defaults: `wrap.testnet` / `1000000000000000000000` = 0.001 wNEAR; set them to a NEP-141 like Circle USDC for stablecoin runs).
-
 #### Casper Testnet
-
+ 
 Create or reuse dedicated Casper testnet accounts or wallet keys for the client,
 server payee, and facilitator. Fund any account that submits Casper transactions
 with testnet CSPR from the [CSPR.live testnet faucet](https://testnet.cspr.live/tools/faucet);
@@ -375,6 +383,14 @@ CSPR is required for gas on Casper Testnet.
 
 Use [testnet.cspr.trade](https://testnet.cspr.trade) to get wrapped CSPR (WCSPR) or csprUSD for
 the client payments.
+
+#### Cardano Preprod
+
+1. Create a preprod wallet (CIP-30 wallet or `PrivateKey.generateMnemonic()` from `@evolution-sdk/evolution`) and set `CLIENT_CARDANO_MNEMONIC` plus `SERVER_CARDANO_ADDRESS` (the client's `addr_test1...` works).
+2. Fund the client wallet with test ADA from the [Cardano testnets faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/) (select **Preprod**). Override the asset with `SERVER_CARDANO_ASSET` / `SERVER_CARDANO_AMOUNT` for token runs.
+3. Get a free **Blockfrost** preprod project id at [blockfrost.io](https://blockfrost.io/) and set `BLOCKFROST_PROJECT_ID`.
+
+> **Note:** payer key = `CLIENT_NEAR_*`, relayer key = `FACILITATOR_NEAR_*`, merchant = `SERVER_NEAR_ADDRESS`. `CLIENT_NEAR_ACCOUNT_ID` is required because a NEAR private key identifies a public key, but the signer must also know which account owns that access key to read its nonce and set the delegated action `senderId`. Override the token with `SERVER_NEAR_ASSET` / `SERVER_NEAR_AMOUNT` (defaults: `wrap.testnet` / `1000000000000000000000` = 0.001 wNEAR; set them to a NEP-141 like Circle USDC for stablecoin runs).
 
 ## Example Session
 
