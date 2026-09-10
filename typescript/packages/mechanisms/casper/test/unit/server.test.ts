@@ -76,6 +76,38 @@ describe("ExactCasperScheme server", () => {
     });
   });
 
+  it("returns explicit AssetAmount with empty extra when none is provided", async () => {
+    const scheme = new ExactCasperScheme();
+
+    await expect(
+      scheme.parsePrice(
+        {
+          amount: "1000000",
+          asset: CSPR_USDC_TESTNET_ASSET,
+        },
+        CASPER_TESTNET_CAIP2,
+      ),
+    ).resolves.toEqual({
+      amount: "1000000",
+      asset: CSPR_USDC_TESTNET_ASSET,
+      extra: {},
+    });
+  });
+
+  it("rejects explicit AssetAmount prices with invalid assets", async () => {
+    const scheme = new ExactCasperScheme();
+
+    await expect(
+      scheme.parsePrice(
+        {
+          amount: "1000000",
+          asset: "bad",
+        },
+        CASPER_TESTNET_CAIP2,
+      ),
+    ).rejects.toThrow("invalid_exact_casper_server_invalid_asset: bad");
+  });
+
   it("uses custom money parsers for money prices", async () => {
     const scheme = new ExactCasperScheme();
     scheme.registerMoneyParser(async () => ({
@@ -104,6 +136,29 @@ describe("ExactCasperScheme server", () => {
     expect(enhanced.extra).toMatchObject({
       name: CSPR_USDC_NAME,
       version: "1",
+    });
+  });
+
+  it("copies supported extension extras when enhancement keys request them", async () => {
+    const scheme = new ExactCasperScheme();
+
+    const enhanced = await scheme.enhancePaymentRequirements(
+      buildRequirements({ extra: { name: CSPR_USDC_NAME, version: "1", untouched: "local" } }),
+      {
+        ...supportedKind,
+        extra: {
+          resource: "premium",
+          ignored: "not requested",
+        },
+      },
+      ["resource"],
+    );
+
+    expect(enhanced.extra).toEqual({
+      name: CSPR_USDC_NAME,
+      version: "1",
+      untouched: "local",
+      resource: "premium",
     });
   });
 

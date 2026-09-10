@@ -177,7 +177,7 @@ async function main(): Promise<void> {
     client.register("cardano:*", new ExactCardanoScheme(cardanoSigner));
     console.log(`Initialized Cardano signer on ${cardanoNetwork}`);
   }
-  
+
   // Register Casper scheme if private key is provided
   if (casperPrivateKey) {
     const casperSigner = await createClientCasperSigner(

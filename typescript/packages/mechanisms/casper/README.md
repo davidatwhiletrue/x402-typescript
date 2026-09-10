@@ -74,7 +74,9 @@ const signer = await createFacilitatorCasperSigner(
   KeyAlgorithm.ED25519,
   {
     rpcUrlConfig: { "casper:casper-test": "https://node.testnet.casper.network/rpc" },
-    speculativeRpcUrlConfig: { "casper:casper-test": process.env.CASPER_SPECEXEC_RPC_URL },
+    speculativeRpcUrlConfig: process.env.CASPER_SPECULATIVE_RPC_URL
+      ? { "casper:casper-test": process.env.CASPER_SPECULATIVE_RPC_URL }
+      : undefined,
   },
 );
 

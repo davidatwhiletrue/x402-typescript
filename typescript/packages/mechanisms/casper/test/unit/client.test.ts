@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { KeyAlgorithm, PrivateKey } from "casper-js-sdk";
 import { ExactCasperScheme } from "../../src/exact/client/scheme";
 import { toClientCasperSigner } from "../../src/signer";
-import type { ExactCasperPayload } from "../../src/types";
+import type { ClientCasperSigner, ExactCasperPayload } from "../../src/types";
 
 const testAsset = "aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
 const testPayTo = "00aabbccddeeff0011223344556677889900aabbccddeeff001122334455667788";
@@ -93,5 +93,28 @@ describe("ExactCasperScheme client", () => {
 
     expect(payload.publicKey.slice(0, 2)).toBe("02");
     expect(payload.signature.slice(0, 2)).toBe("02");
+  });
+
+  it("wraps hashing failures with client error context", async () => {
+    const scheme = new ExactCasperScheme(createTestSigner());
+
+    await expect(
+      scheme.createPaymentPayload(2, buildRequirements({ amount: "not-a-number" })),
+    ).rejects.toThrow("invalid_exact_casper_client_failed_to_hash");
+  });
+
+  it("wraps signing failures with client error context", async () => {
+    const signer: ClientCasperSigner = {
+      accountAddress: () => testPayTo,
+      publicKey: () => `01${"a".repeat(64)}`,
+      signEIP712: async () => {
+        throw new Error("key unavailable");
+      },
+    };
+    const scheme = new ExactCasperScheme(signer);
+
+    await expect(scheme.createPaymentPayload(2, buildRequirements())).rejects.toThrow(
+      "invalid_exact_casper_client_failed_to_sign: key unavailable",
+    );
   });
 });

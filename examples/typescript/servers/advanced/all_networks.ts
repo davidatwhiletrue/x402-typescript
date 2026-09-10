@@ -330,7 +330,7 @@ app.listen(port, () => {
   }
   if (casperAddress) {
     console.log(`   Casper: ${casperAddress} on ${CASPER_NETWORK}`);
-  }  
+  }
   if (ccdAddress) {
     console.log(`   CCD: ${ccdAddress} on ${CCD_NETWORK}`);
   }

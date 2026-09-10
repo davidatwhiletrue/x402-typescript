@@ -93,7 +93,8 @@ const PORT = process.env.PORT || "4022";
 // Configuration - optional per network (alphabetic order)
 const avmPrivateKey = process.env.AVM_PRIVATE_KEY as string | undefined;
 const cardanoMnemonic = process.env.CARDANO_MNEMONIC as string | undefined;
-const cardanoNetwork = (process.env.CARDANO_NETWORK || "cardano:preprod") as Network;
+const cardanoNetwork = (process.env.CARDANO_NETWORK ||
+  "cardano:preprod") as Network;
 const blockfrostBaseUrl = process.env.BLOCKFROST_PREPROD_URL;
 const blockfrostProjectId = process.env.BLOCKFROST_PROJECT_ID;
 const aptosPrivateKey = process.env.APTOS_PRIVATE_KEY as string | undefined;
@@ -213,16 +214,25 @@ if (aptosPrivateKey) {
 // Register Cardano scheme if a mnemonic and Blockfrost connection are provided
 if (cardanoMnemonic) {
   if (!blockfrostBaseUrl || !blockfrostProjectId) {
-    console.error("❌ CARDANO_MNEMONIC requires BLOCKFROST_PREPROD_URL and BLOCKFROST_PROJECT_ID");
+    console.error(
+      "❌ CARDANO_MNEMONIC requires BLOCKFROST_PREPROD_URL and BLOCKFROST_PROJECT_ID",
+    );
     process.exit(1);
   }
   const cardanoSigner = toFacilitatorCardanoSigner({
     mnemonic: cardanoMnemonic,
     network: CARDANO_NETWORK,
-    provider: { blockfrost: { baseUrl: blockfrostBaseUrl, projectId: blockfrostProjectId } },
+    provider: {
+      blockfrost: {
+        baseUrl: blockfrostBaseUrl,
+        projectId: blockfrostProjectId,
+      },
+    },
     awaitConfirmation: false,
   });
-  console.info(`Cardano Facilitator account: ${cardanoSigner.getAddresses()[0]}`);
+  console.info(
+    `Cardano Facilitator account: ${cardanoSigner.getAddresses()[0]}`,
+  );
   facilitator.register(
     CARDANO_NETWORK,
     new ExactCardanoScheme(cardanoSigner, {
