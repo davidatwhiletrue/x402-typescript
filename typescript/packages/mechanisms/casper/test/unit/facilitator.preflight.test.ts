@@ -108,9 +108,9 @@ function createMockSigner(
     getSpeculativeRpcUrl: () => undefined,
     getAddresses: () => [privateKey.publicKey.accountHash().toHex()],
     getPublicKeyHex: () => privateKey.publicKey.toHex(),
-    signTransaction: vi.fn(async (_transaction: Transaction) => { }),
+    signTransaction: vi.fn(async (_transaction: Transaction) => {}),
     putTransaction: vi.fn(async () => "a".repeat(64)),
-    waitForTransaction: vi.fn(async () => { }),
+    waitForTransaction: vi.fn(async () => {}),
     ...overrides,
   };
 }
