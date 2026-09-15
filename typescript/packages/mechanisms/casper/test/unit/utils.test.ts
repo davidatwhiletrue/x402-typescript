@@ -31,8 +31,12 @@ describe("Casper utils", () => {
 
   it("extracts chain names from CAIP-2 network identifiers and rejects invalid formats", () => {
     expect(chainNameFromNetwork("casper:casper-test")).toBe("casper-test");
-    expect(() => chainNameFromNetwork("casper-test")).toThrow("Unsupported network format: casper-test (expected casper:CHAIN_NAME)");
-    expect(() => chainNameFromNetwork("casper:casper:test")).toThrow("Unsupported network format: casper:casper:test (expected casper:CHAIN_NAME)");
+    expect(() => chainNameFromNetwork("casper-test")).toThrow(
+      "Unsupported network format: casper-test (expected casper:CHAIN_NAME)",
+    );
+    expect(() => chainNameFromNetwork("casper:casper:test")).toThrow(
+      "Unsupported network format: casper:casper:test (expected casper:CHAIN_NAME)",
+    );
     expect(() => chainNameFromNetwork("casper:")).toThrow("Invalid Casper CAIP-2 network: casper:");
   });
 
