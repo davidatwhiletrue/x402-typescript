@@ -83,7 +83,7 @@ export async function toFacilitatorCasperSigner(
       throw new Error(`unsupported Casper network: ${network}`);
     }
     return {
-      chainName: NetworkConfigs[network]?.chainName ?? chainNameFromNetwork(network),
+      chainName: chainNameFromNetwork(network),
       rpcUrl,
     };
   };

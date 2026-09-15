@@ -99,8 +99,14 @@ export function isValidContractPackageHash(value: string): boolean {
  * @returns Chain name.
  */
 export function chainNameFromNetwork(network: string): string {
-  const parts = network.split(":");
-  return parts.length === 2 ? parts[1] : network;
+  if (!network.startsWith("casper:") || network.split(":").length !== 2) {
+    throw new Error(`Unsupported network format: ${network} (expected casper:CHAIN_NAME)`);
+  }
+  const chainName = network.slice("casper:".length);
+  if (!chainName) {
+    throw new Error(`Invalid Casper CAIP-2 network: ${network}`);
+  }
+  return chainName;
 }
 
 /**

@@ -29,9 +29,11 @@ describe("Casper utils", () => {
     expect(() => hexToBytes("abc")).toThrow("even number of characters");
   });
 
-  it("extracts chain names from CAIP-2 network identifiers", () => {
+  it("extracts chain names from CAIP-2 network identifiers and rejects invalid formats", () => {
     expect(chainNameFromNetwork("casper:casper-test")).toBe("casper-test");
-    expect(chainNameFromNetwork("casper-test")).toBe("casper-test");
+    expect(() => chainNameFromNetwork("casper-test")).toThrow("Unsupported network format: casper-test (expected casper:CHAIN_NAME)");
+    expect(() => chainNameFromNetwork("casper:casper:test")).toThrow("Unsupported network format: casper:casper:test (expected casper:CHAIN_NAME)");
+    expect(() => chainNameFromNetwork("casper:")).toThrow("Invalid Casper CAIP-2 network: casper:");
   });
 
   it("returns known network config and rejects unknown networks", () => {
