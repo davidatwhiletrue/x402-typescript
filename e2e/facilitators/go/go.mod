@@ -4,10 +4,13 @@ go 1.24.0
 
 toolchain go1.24.1
 
+replace github.com/make-software/casper-go-sdk/v2 => /Users/davidhernando/projects/x402/casper-go-sdk
+
 require (
 	github.com/ethereum/go-ethereum v1.17.2
 	github.com/gagliardetto/solana-go v1.14.0
 	github.com/gin-gonic/gin v1.11.0
+	github.com/make-software/casper-go-sdk/v2 v2.0.3-beta1.0.20260928134037-e1307e2562cd
 	github.com/x402-foundation/x402/go/v2 v2.14.0
 )
 
@@ -21,13 +24,14 @@ require (
 	github.com/blendle/zapdriver v1.3.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/casper-ecosystem/casper-eip-712/go v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/consensys/gnark-crypto v0.18.1 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.6 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
@@ -61,6 +65,7 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.55.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
 	github.com/supranational/blst v0.3.16 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect

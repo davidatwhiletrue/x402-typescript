@@ -4,6 +4,8 @@ go 1.24.0
 
 toolchain go1.24.1
 
+replace github.com/make-software/casper-go-sdk/v2 => /Users/davidhernando/projects/x402/casper-go-sdk
+
 require (
 	github.com/x402-foundation/x402/e2e/servers/go v0.0.0
 	github.com/x402-foundation/x402/go/v2 v2.14.0
@@ -22,7 +24,7 @@ require (
 	github.com/crate-crypto/go-eth-kzg v1.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.6 // indirect
 	github.com/ethereum/go-ethereum v1.17.2 // indirect
 	github.com/fatih/color v1.16.0 // indirect
@@ -38,6 +40,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
+	github.com/make-software/casper-go-sdk/v2 v2.0.3-beta1.0.20260928134037-e1307e2562cd // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect

@@ -6,6 +6,7 @@ import (
 	"strings"
 	x402 "github.com/x402-foundation/x402/go/v2"
 	x402http "github.com/x402-foundation/x402/go/v2/http"
+	casper "github.com/x402-foundation/x402/go/v2/mechanisms/casper/exact/server"
 	authcaptureserver "github.com/x402-foundation/x402/go/v2/mechanisms/evm/auth-capture/server"
 	batchsettlement "github.com/x402-foundation/x402/go/v2/mechanisms/evm/batch-settlement"
 	batchedserver "github.com/x402-foundation/x402/go/v2/mechanisms/evm/batch-settlement/server"
@@ -110,6 +111,7 @@ func SchemeBindings(cfg Config) []SchemeBinding {
 		exactSVM *svm.ExactSvmScheme
 		uptoSVM  *uptosvm.UptoSvmScheme
 		batchSVM *batchsvmserver.BatchSvmScheme
+		exactCasper *casper.ExactCasperScheme
 	)
 
 	schemeFor := func(networkID, scheme string) x402.SchemeNetworkServer {
@@ -215,6 +217,14 @@ func SchemeBindings(cfg Config) []SchemeBinding {
 					batchSVM = batchsvmserver.NewBatchSvmScheme(batchCfg)
 				}
 				return batchSVM
+			}
+		case "casper":
+			switch scheme {
+			case "exact":
+				if exactCasper == nil {
+					exactCasper = casper.NewExactCasperScheme()
+				}
+				return exactCasper
 			}
 		}
 		return nil
